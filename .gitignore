@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+medical-frontend/node_modules/
+medical-frontend/.next/
+.env
+uploads/
