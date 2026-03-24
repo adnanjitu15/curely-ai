@@ -91,7 +91,7 @@ export default function Home() {
   const capsuleRef = useRef<HTMLDivElement>(null);
 
   // Chat State
-  const [messages, setMessages] = useState<{ role: "user" | "ai"; content: string }[]>([]);
+  const [messages, setMessages] = useState<{ role: "user" | "ai"; content: string; sources?: any[] }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // File Upload State - MUST DECLARE THESE!
