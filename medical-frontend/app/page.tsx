@@ -65,6 +65,8 @@ const HEALTH_FACTS = [
   "How to lower resting heart rate naturally?"
 ];
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default function Home() {
   const [isBooked, setIsBooked] = useState(false);
   const [isChatSent, setIsChatSent] = useState(false);
@@ -332,7 +334,7 @@ export default function Home() {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch('http://localhost:8000/upload', {
+        const res = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
           body: formData,
         });
@@ -396,7 +398,7 @@ export default function Home() {
         // ========== END NEW ==========
         
         try {
-          const response = await fetch("http://localhost:8000/chat", {
+          const response = await fetch(`${API_BASE_URL}/chat`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -435,7 +437,7 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/chat", {
+      const response = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
