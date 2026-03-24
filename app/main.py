@@ -3,26 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import uuid
 
-from app.core.schemas import ChatRequest, ChatResponse
+from app.core.schemas import ChatRequest, ChatResponse, SourceChunk
 from app.services.pdf_service import extract_text_from_pdf, extract_text_from_image, extract_text_from_doc, chunk_text
 from app.services.chat_service import generate_chat_reply, generate_chat_reply_with_context
-from app.services.vector_store import add_document_chunks, semantic_search
-
-# --- ORIGINAL CODE (Backed up for safety) ---
-# app = FastAPI(
-#     title="Medical RAG Backend",
-#     description="Medical chatbot with document understanding",
-#     version="0.3.0"
-# )
-# --------------------------------------------
+from app.services.vector_store import add_document_chunks, semantic_search_with_scores
 
 from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(
-    title="Medical RAG Backend",
-    description="Medical chatbot with document understanding",
-    version="0.3.0"
+    title="Curely AI — Medical RAG Backend",
+    description="AI-powered medical chatbot with document understanding using RAG (Retrieval-Augmented Generation)",
+    version="1.0.0"
 )
 
 app.add_middleware(
@@ -42,7 +34,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.get("/")
 def root():
-    return {"status": "Medical RAG API running"}
+    return {"status": "Curely AI Medical RAG API running", "version": "1.0.0"}
 
 @app.get("/health")
 def health():
@@ -52,24 +44,41 @@ def health():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    # Get the user message
-    message = request.message.lower()
+    """
+    Process a chat message with optional RAG context from uploaded documents.
     
-    # 1️⃣ Semantic search over embedded document chunks (if available)
-    docs = semantic_search(request.message)
-    doc_context = None
-    if docs:
-        doc_context = docs[0]  # Get the most relevant chunk
-
-    # 2️⃣ Generate reply with document context if available
-    if doc_context:
-        # If we have document context, include it in the prompt for better analysis
-        enhanced_message = f"{request.message}\n\n[Document Context: {doc_context}]"
-        base_reply = generate_chat_reply_with_context(enhanced_message, doc_context)
+    Pipeline:
+    1. Semantic search over FAISS vector store for relevant document chunks
+    2. If context found → generate reply WITH document context (RAG)
+    3. If no context → generate a standalone medical response
+    4. Return reply + source attribution (which chunks informed the answer)
+    """
+    # 1️⃣ Semantic search over FAISS index (returns chunks with relevance scores)
+    search_results = semantic_search_with_scores(request.message, top_k=3)
+    
+    # Filter to only chunks with meaningful relevance (score > 0.15)
+    # OR if the user explicitly mentions the report, pass the top chunks anyway 
+    # so the LLM knows the document was uploaded.
+    keywords = ["report", "upload", "image", "document", "file", "pic", "test", "result", "give", "get"]
+    has_keyword = any(w in request.message.lower() for w in keywords)
+    
+    relevant_results = [r for r in search_results if r["score"] > 0.15 or has_keyword]
+    
+    # Build source attribution
+    sources = [
+        SourceChunk(text=r["text"][:200] + "..." if len(r["text"]) > 200 else r["text"], score=r["score"])
+        for r in relevant_results
+    ]
+    
+    # 2️⃣ Generate reply
+    if relevant_results:
+        # Combine top relevant chunks as context
+        combined_context = "\n\n".join([r["text"] for r in relevant_results])
+        base_reply = generate_chat_reply_with_context(request.message, combined_context)
     else:
         base_reply = generate_chat_reply(request.message)
 
-    return ChatResponse(reply=base_reply)
+    return ChatResponse(reply=base_reply, sources=sources)
 
 # ---------------- FILE UPLOAD ----------------
 
@@ -93,7 +102,7 @@ async def upload_document(file: UploadFile = File(...)):
     ext = filename_lower[filename_lower.rfind('.'):]
     file_id = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join(UPLOAD_DIR, file_id)
-
+ 
     with open(file_path, "wb") as f:
         f.write(await file.read())
 

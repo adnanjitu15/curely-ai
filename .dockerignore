@@ -1,11 +1,11 @@
 venv/
 __pycache__/
 *.pyc
-medical-frontend/node_modules/
-medical-frontend/.next/
+medical-frontend/
 .env
 uploads/
+.git/
 .pytest_cache/
+*.log
 tmp_*.py
 test_*.txt
-*.log

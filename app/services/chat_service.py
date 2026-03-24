@@ -146,13 +146,14 @@ def generate_chat_reply(message: str) -> str:
                 )
 
             response = client.models.generate_content(
-                model='gemini-1.5-pro',
+                model='gemini-2.5-flash',
                 contents=f"{system_prompt}\n\nUser's message: {message}"
             )
             return response.text
         except Exception as e:
-            print(f"Gemini API Error: {e}")
+            print(f"[CRITICAL] Gemini API Error in generate_chat_reply: {e}")
             # Fallback to local logic if API fails
+            return f"I'm having a temporary issue connecting to my brain. Please try again in a moment! 🔄 (Error: {type(e).__name__})"
 
     # 2. Local Fallback Logic (Empathetic & Polite)
     
@@ -215,12 +216,13 @@ def generate_chat_reply_with_context(message: str, context: str) -> str:
             prompt = f"{system_prompt}\n\n[Document Context]: {context}\n\nUser query: {message}"
 
             response = client.models.generate_content(
-                model='gemini-1.5-pro',
+                model='gemini-2.5-flash',
                 contents=prompt
             )
             return response.text
         except Exception as e:
-            print(f"Gemini API Error with context: {e}")
+            print(f"[CRITICAL] Gemini API Error with context: {e}")
+            return f"I'm having a temporary issue analyzing your document. Please try again in a moment! 🔄 (Error: {type(e).__name__})"
             
     # Fallback to standard chat if API fails or no key
     return generate_chat_reply(message)
