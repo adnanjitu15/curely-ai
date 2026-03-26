@@ -809,7 +809,7 @@ export default function Home() {
                                 {/* ========== NEW: "READING DOCUMENTS" STATUS MESSAGE ==========*/}
                                 {isReadingDocuments && (
                                   <div className="flex gap-4">
-                                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 flex-shrink-0 shadow-sm"><Sparkles size={16} /></div>
+                                    <div className="w-10 h-10 flex-shrink-0"></div>
                                     <motion.div 
                                       initial={{ opacity: 0, y: 10 }}
                                       animate={{ opacity: 1, y: 0 }}
@@ -823,7 +823,7 @@ export default function Home() {
                                 
                                 {isLoading && (
                                     <div className="flex gap-4 max-w-3xl">
-                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 flex-shrink-0 shadow-sm"><Sparkles size={16} /></div>
+                                        <div className="w-10 h-10 flex-shrink-0"></div>
                                         <div className="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 flex gap-2 items-center">
                                             <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
                                             <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
