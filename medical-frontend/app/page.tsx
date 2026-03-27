@@ -128,14 +128,53 @@ export default function Home() {
     setMounted(true);
   }, []);
 
-  // ========== SESSION HELPERS ==========
-  const loadSessionsList = async () => {
+  // ========== SESSION HELPERS (PRIVACY-SAFE: localStorage-scoped) ==========
+  const LOCAL_STORAGE_KEY = 'curely_session_ids';
+
+  const getLocalSessionIds = (): string[] => {
     try {
-      const res = await fetch(`${API_BASE_URL}/sessions`);
-      if (res.ok) {
-        const data = await res.json();
-        setSessions(data);
-      }
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  };
+
+  const saveSessionIdToLocal = (sid: string) => {
+    const ids = getLocalSessionIds();
+    if (!ids.includes(sid)) {
+      ids.unshift(sid); // newest first
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(ids));
+    }
+  };
+
+  const removeSessionIdFromLocal = (sid: string) => {
+    const ids = getLocalSessionIds().filter(id => id !== sid);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(ids));
+  };
+
+  const loadSessionsList = async () => {
+    const localIds = getLocalSessionIds();
+    if (localIds.length === 0) { setSessions([]); return; }
+    try {
+      // Fetch only sessions that belong to THIS browser
+      const results = await Promise.all(
+        localIds.map(async (sid) => {
+          try {
+            const res = await fetch(`${API_BASE_URL}/sessions/${sid}`);
+            if (res.ok) {
+              const data = await res.json();
+              return {
+                session_id: data.session_id,
+                title: data.title,
+                created_at: data.created_at,
+                updated_at: data.created_at,
+                message_count: data.messages?.length || 0
+              };
+            }
+          } catch {}
+          return null;
+        })
+      );
+      setSessions(results.filter(Boolean) as any[]);
     } catch (e) { console.error('Failed to load sessions', e); }
   };
 
@@ -145,6 +184,7 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setSessionId(data.session_id);
+        saveSessionIdToLocal(data.session_id);
         loadSessionsList();
         return data.session_id;
       }
