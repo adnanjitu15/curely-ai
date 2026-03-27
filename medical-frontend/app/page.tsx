@@ -96,22 +96,19 @@ export default function Home() {
   const [messages, setMessages] = useState<{ role: "user" | "ai"; content: string; sources?: any[] }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // ========== SESSION PERSISTENCE STATE ==========
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<{ session_id: string; title: string; created_at: string; updated_at: string; message_count: number }[]>([]);
+  // ========== END SESSION STATE ==========
+
   // File Upload State - MUST DECLARE THESE!
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // ========== ORIGINAL CODE (BEFORE FIX) ==========
-  // const [attachedFile, setAttachedFile] = useState<{ name: string; type: string; size: number } | null>(null);
-  // This only stored metadata, not the actual file. Bad for upload later.
-  // ========== END ORIGINAL CODE ==========
-
-  // ========== NEW CODE (FIXED FIX) ==========
   // Now we store the actual File object + metadata so we can upload it when user clicks send
   const [attachedFile, setAttachedFile] = useState<{ file: File; name: string; type: string; size: number } | null>(null);
-  // ========== END NEW CODE ==========
 
-  // ========== NEW UI STATE FOR UX IMPROVEMENTS ==========
-  // Toast notifications for upload success/error (instead of chat bubble)
+  // Toast notifications for upload success/error
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; show: boolean }>({ 
     message: '', 
     type: 'success', 
@@ -121,16 +118,63 @@ export default function Home() {
   // "Reading documents" status during bot processing
   const [isReadingDocuments, setIsReadingDocuments] = useState(false);
   
-  // ========== NEW: VOICE UI STATE ==========
+  // ========== VOICE UI STATE ==========
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // ========== END NEW VOICE UI STATE ==========
-  // ========== END NEW UI STATE ==========
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // ========== SESSION HELPERS ==========
+  const loadSessionsList = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/sessions`);
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data);
+      }
+    } catch (e) { console.error('Failed to load sessions', e); }
+  };
+
+  const createSession = async (): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/sessions`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setSessionId(data.session_id);
+        loadSessionsList();
+        return data.session_id;
+      }
+    } catch (e) { console.error('Failed to create session', e); }
+    return null;
+  };
+
+  const loadSession = async (sid: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/sessions/${sid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSessionId(sid);
+        setMessages(data.messages.map((m: any) => ({
+          role: m.role,
+          content: m.content,
+          sources: m.sources || []
+        })));
+      }
+    } catch (e) { console.error('Failed to load session', e); }
+  };
+
+  const startNewChat = () => {
+    setSessionId(null);
+    setMessages([]);
+  };
+
+  // Load sessions list on mount
+  useEffect(() => {
+    loadSessionsList();
   }, []);
 
   // Cycle through facts every 4 seconds
@@ -398,12 +442,17 @@ export default function Home() {
         // ========== END NEW ==========
         
         try {
+          // Create session if none exists
+          let currentSessionId = sessionId;
+          if (!currentSessionId) {
+            currentSessionId = await createSession();
+          }
           const response = await fetch(`${API_BASE_URL}/chat`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ message: messageText }),
+            body: JSON.stringify({ message: messageText, session_id: currentSessionId }),
           });
 
           if (!response.ok) {
@@ -411,7 +460,9 @@ export default function Home() {
           }
 
           const chatData = await response.json();
+          if (chatData.session_id) setSessionId(chatData.session_id);
           setMessages(prev => [...prev, { role: "ai", content: chatData.reply, sources: chatData.sources || [] }]);
+          loadSessionsList();
         } catch (error) {
           console.error("Chat error:", error);
           setMessages(prev => [...prev, { role: "ai", content: "Sorry, I'm having trouble connecting to the server. Please try again." }]);
@@ -437,12 +488,17 @@ export default function Home() {
     setIsLoading(true);
 
     try {
+      // Create session if none exists
+      let currentSessionId = sessionId;
+      if (!currentSessionId) {
+        currentSessionId = await createSession();
+      }
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({ message: userMessage, session_id: currentSessionId }),
       });
 
       if (!response.ok) {
@@ -450,7 +506,9 @@ export default function Home() {
       }
 
       const data = await response.json();
+      if (data.session_id) setSessionId(data.session_id);
       setMessages(prev => [...prev, { role: "ai", content: data.reply, sources: data.sources || [] }]);
+      loadSessionsList();
     } catch (error) {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, { role: "ai", content: "Sorry, I'm having trouble connecting to the server. Please try again." }]);
@@ -624,11 +682,27 @@ export default function Home() {
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 space-y-2">
                         <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4 px-2">Recent Sessions</div>
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-blue-600 text-sm font-medium flex items-center gap-3">
-                            <MessageCircle size={16} /> New Consultation
-                        </div>
+                        {sessions.length === 0 && (
+                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-400 text-sm font-medium flex items-center gap-3">
+                            <MessageCircle size={16} /> No sessions yet
+                          </div>
+                        )}
+                        {sessions.map((s) => (
+                          <button
+                            key={s.session_id}
+                            onClick={() => loadSession(s.session_id)}
+                            className={`w-full text-left p-3 rounded-xl border text-sm font-medium flex items-center gap-3 transition-all ${
+                              sessionId === s.session_id
+                                ? 'bg-blue-50 border-blue-200 text-blue-600'
+                                : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            <MessageCircle size={16} />
+                            <span className="truncate">{s.title}</span>
+                          </button>
+                        ))}
                     </div>
-                    <div className="p-4"><button className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all">+ Start New Chat</button></div>
+                    <div className="p-4"><button onClick={startNewChat} className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all">+ Start New Chat</button></div>
                 </div>
 
                 {/* Main Chat Area */}
