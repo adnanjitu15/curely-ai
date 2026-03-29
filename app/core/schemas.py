@@ -10,6 +10,7 @@ class ChatRequest(BaseModel):
         example="I have chest pain and shortness of breath"
     )
     session_id: Optional[str] = Field(default=None, description="Session ID to persist chat history")
+    provider: str = Field(default="gemini", description="Which AI model to use (gemini or openai)")
 
 
 class SourceChunk(BaseModel):

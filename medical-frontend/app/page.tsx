@@ -98,6 +98,7 @@ export default function Home() {
 
   // ========== SESSION PERSISTENCE STATE ==========
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [llmProvider, setLlmProvider] = useState<"gemini" | "openai">("gemini");
   const [sessions, setSessions] = useState<{ session_id: string; title: string; created_at: string; updated_at: string; message_count: number }[]>([]);
   // ========== END SESSION STATE ==========
 
@@ -492,7 +493,7 @@ export default function Home() {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ message: messageText, session_id: currentSessionId }),
+            body: JSON.stringify({ message: messageText, session_id: currentSessionId, provider: llmProvider }),
           });
 
           if (!response.ok) {
@@ -538,7 +539,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: userMessage, session_id: currentSessionId }),
+        body: JSON.stringify({ message: userMessage, session_id: currentSessionId, provider: llmProvider }),
       });
 
       if (!response.ok) {
@@ -774,9 +775,27 @@ export default function Home() {
                     
                     {/* Fixed Header: Transparent and Seamless! */}
                     <header className="h-20 bg-transparent flex items-center justify-between px-8 absolute top-0 w-full z-10 pointer-events-none">
-                        <div className="flex items-center gap-3 pointer-events-auto">
-                            <h3 className="font-bold text-slate-800 text-lg">Curely AI Assistant</h3>
-                            <span className="px-2 py-0.5 bg-green-100 text-green-600 text-[10px] font-bold rounded-full uppercase">Secure</span>
+                        <div className="flex items-center gap-6 pointer-events-auto">
+                            <div className="flex items-center gap-3">
+                                <h3 className="font-bold text-slate-800 text-lg">Curely AI Assistant</h3>
+                                <span className="px-2 py-0.5 bg-green-100 text-green-600 text-[10px] font-bold rounded-full uppercase">Secure</span>
+                            </div>
+                            
+                            {/* --- AI PROVIDER TOGGLE --- */}
+                            <div className="flex items-center bg-slate-100 p-1 rounded-full shadow-inner border border-slate-200">
+                                <button 
+                                    onClick={() => setLlmProvider("gemini")}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${llmProvider === "gemini" ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+                                >
+                                    ✨ Gemini
+                                </button>
+                                <button 
+                                    onClick={() => setLlmProvider("openai")}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${llmProvider === "openai" ? "bg-black text-white shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+                                >
+                                    🧠 GPT-4o
+                                </button>
+                            </div>
                         </div>
                         <button onClick={() => setShowChatWindow(false)} className="p-3 hover:bg-slate-200/50 text-slate-400 hover:text-red-500 rounded-full transition-all pointer-events-auto">
                             ✕

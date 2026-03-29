@@ -180,12 +180,12 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
         combined_context = "\n\n".join([r["text"] for r in relevant_results])
         if chat_history_text:
             combined_context = f"[Previous Conversation]:\n{chat_history_text}\n\n[Document Context]:\n{combined_context}"
-        base_reply = generate_chat_reply_with_context(request.message, combined_context)
+        base_reply = generate_chat_reply_with_context(request.message, combined_context, provider=request.provider)
     else:
         if chat_history_text:
-            base_reply = generate_chat_reply_with_context(request.message, f"[Previous Conversation]:\n{chat_history_text}")
+            base_reply = generate_chat_reply_with_context(request.message, f"[Previous Conversation]:\n{chat_history_text}", provider=request.provider)
         else:
-            base_reply = generate_chat_reply(request.message)
+            base_reply = generate_chat_reply(request.message, provider=request.provider)
 
     # 4️⃣ Persist to database (if session_id provided)
     active_session_id = request.session_id

@@ -164,7 +164,10 @@ def extract_text_from_doc(file_path: str) -> str:
 
 def chunk_text(text: str, chunk_size: int = 700):
     """Splits text into chunks for embeddings."""
-    if not text or text.startswith("❌") or text.startswith("⚠️"):
+    if not text or not text.strip():
+        return []
+        
+    if text.startswith("❌") or text.startswith("⚠️"):
         return [text]  # Don't chunk error messages
     
     return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]

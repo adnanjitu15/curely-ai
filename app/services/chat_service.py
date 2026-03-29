@@ -45,7 +45,9 @@
 # --------------------------------------------
 
 import os
-from google import genai
+from pydantic import BaseModel
+import google.genai as genai
+import openai
 from google.genai import types
 
 EMERGENCY_KEYWORDS = [
@@ -56,7 +58,7 @@ EMERGENCY_KEYWORDS = [
 ]
 
 # Adding polite greetings and empathetic keywords
-GREETING_KEYWORDS = ["salam", "assalamualaikum", "hello", "hi", "hey", "good morning", "good evening"]
+GREETING_KEYWORDS = ["salam", "assalamualaikum", "hello", "hi", "hey", "good morning", "good evening", "assalamu", "salam", "hi curely"]
 EMPATHY_KEYWORDS = ["sick", "pain", "hurt", "unwell", "ill", "not feeling well", "fever", "cough"]
 
 MEDICAL_KEYWORDS = [
@@ -81,7 +83,7 @@ def is_greeting(message: str) -> bool:
 def needs_empathy(message: str) -> bool:
     return any(word in message for word in EMPATHY_KEYWORDS)
 
-def generate_chat_reply(message: str) -> str:
+def generate_chat_reply(message: str, provider: str = "gemini") -> str:
     msg = message.lower()
 
     # 1. Check for real Gemini integration first
@@ -145,6 +147,25 @@ def generate_chat_reply(message: str) -> str:
                     "Tone: Friendly, knowledgeable, warm — like a health-savvy caring friend. Keep responses practical and direct.\n"
                 )
 
+            if provider == "openai":
+                openai_api_key = os.getenv("OPENAI_API_KEY")
+                if openai_api_key:
+                    try:
+                        openai_client = openai.OpenAI(api_key=openai_api_key)
+                        response = openai_client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": message}
+                            ]
+                        )
+                        return response.choices[0].message.content
+                    except Exception as e:
+                        print(f"[WARNING] OpenAI API failed, falling back to Gemini: {e}")
+                else:
+                    print("[WARNING] OpenAI requested but OPENAI_API_KEY missing. Falling back to Gemini.")
+
+            # Default / Fallback to Gemini
             response = client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=f"{system_prompt}\n\nUser's message: {message}"
@@ -191,7 +212,7 @@ def generate_chat_reply(message: str) -> str:
         "Please make sure to consult a qualified doctor for proper medical treatment. Wishing you the best of health! 💖"
     )
 
-def generate_chat_reply_with_context(message: str, context: str) -> str:
+def generate_chat_reply_with_context(message: str, context: str, provider: str = "gemini") -> str:
     """Generate a reply using specific document context via RAG."""
     api_key = os.getenv("GEMINI_API_KEY")
     if api_key:
@@ -215,6 +236,25 @@ def generate_chat_reply_with_context(message: str, context: str) -> str:
 
             prompt = f"{system_prompt}\n\n[Document Context]: {context}\n\nUser query: {message}"
 
+            if provider == "openai":
+                openai_api_key = os.getenv("OPENAI_API_KEY")
+                if openai_api_key:
+                    try:
+                        openai_client = openai.OpenAI(api_key=openai_api_key)
+                        response = openai_client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": f"[Document Context]: {context}\n\nUser query: {message}"}
+                            ]
+                        )
+                        return response.choices[0].message.content
+                    except Exception as e:
+                        print(f"[WARNING] OpenAI API failed in context chat, falling back to Gemini: {e}")
+                else:
+                    print("[WARNING] OpenAI requested but OPENAI_API_KEY missing. Falling back to Gemini.")
+
+            # Default / Fallback to Gemini
             response = client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=prompt
@@ -225,4 +265,4 @@ def generate_chat_reply_with_context(message: str, context: str) -> str:
             return f"I'm having a temporary issue analyzing your document. Please try again in a moment! 🔄 (Error: {type(e).__name__})"
             
     # Fallback to standard chat if API fails or no key
-    return generate_chat_reply(message)
+    return generate_chat_reply(message, provider=provider)

@@ -30,7 +30,8 @@ mock_modules = [
     "pdf2image",
     "pytesseract",
     "pypdf",
-    "docx"
+    "docx",
+    "openai"
 ]
 for mod in mock_modules:
     sys.modules[mod] = MagicMock()
