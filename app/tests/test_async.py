@@ -8,4 +8,4 @@ async def test_root():
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get("/")
     assert response.status_code == 200
-    assert response.json()["status"] == "Medical RAG API running"
+    assert response.json()["status"] == "Curely AI Medical RAG API running"
