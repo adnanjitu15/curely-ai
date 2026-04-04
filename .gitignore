@@ -1,11 +1,44 @@
-venv/
+# ============================================
+# Curely AI — Git Ignore Rules
+# ============================================
+
+# --- Python ---
+venv*/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# --- Node.js (Frontend) ---
 medical-frontend/node_modules/
 medical-frontend/.next/
+
+# --- Secrets & Environment ---
 .env
+*.env.local
+
+# --- Uploads & Data (runtime generated) ---
 uploads/
+data/*.db
+
+# --- Testing & Logs ---
 .pytest_cache/
 tmp_*.py
 test_*.txt
 *.log
+out.txt
+pytest_output.txt
+htmlcov/
+.coverage
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
