@@ -39,7 +39,7 @@ def add_document_chunks(chunks: list[str]):
     3. Add to FAISS index for fast retrieval
     4. Store original text for later retrieval
     """
-    global documents
+    # (documents is a module-level list — .extend() mutates it in place, no `global` needed)
 
     if not chunks:
         return
