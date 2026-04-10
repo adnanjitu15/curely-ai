@@ -12,22 +12,66 @@ How it works:
 2. Each chunk is embedded into a 384-dim vector using sentence-transformers
 3. Vectors are L2-normalized so Inner Product = Cosine Similarity
 4. On query: embed the query → search FAISS index → return top-k most similar chunks
+
+NOTE: Heavy dependencies (sentence-transformers, faiss, numpy) are lazy-loaded
+to stay under Render's 512MB free-tier memory limit at startup.
 """
 
-import numpy as np
-import faiss
-from sentence_transformers import SentenceTransformer
-
-# Load the embedding model (384-dimensional vectors, ~80MB)
-# all-MiniLM-L6-v2 is the gold standard for lightweight, high-quality embeddings
-model = SentenceTransformer("all-MiniLM-L6-v2")
+import importlib
 
 # FAISS index (Inner Product on L2-normalized vectors = Cosine Similarity)
 EMBEDDING_DIM = 384
-index = faiss.IndexFlatIP(EMBEDDING_DIM)
 
 # Document text storage (maps FAISS index position → original text)
 documents: list[str] = []
+
+# --- Lazy-loaded heavy objects ---
+# These are loaded ONLY when someone actually uploads or searches,
+# not at app startup, so the server can boot under 512MB RAM.
+_model = None
+_index = None
+_np = None
+_faiss = None
+
+
+def _get_np():
+    """Lazy-load numpy."""
+    global _np
+    if _np is None:
+        _np = importlib.import_module("numpy")
+    return _np
+
+
+def _get_faiss():
+    """Lazy-load FAISS."""
+    global _faiss
+    if _faiss is None:
+        _faiss = importlib.import_module("faiss")
+    return _faiss
+
+
+def _get_model():
+    """Lazy-load the sentence-transformers embedding model (~80MB).
+    
+    all-MiniLM-L6-v2 is the gold standard for lightweight, high-quality embeddings.
+    Only loaded on first use (upload or search), not at app boot.
+    """
+    global _model
+    if _model is None:
+        print("[FAISS] Loading embedding model (first use)...")
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
+        print("[FAISS] Model loaded successfully!")
+    return _model
+
+
+def _get_index():
+    """Lazy-load the FAISS index."""
+    global _index
+    if _index is None:
+        faiss = _get_faiss()
+        _index = faiss.IndexFlatIP(EMBEDDING_DIM)
+    return _index
 
 
 def add_document_chunks(chunks: list[str]):
@@ -39,10 +83,13 @@ def add_document_chunks(chunks: list[str]):
     3. Add to FAISS index for fast retrieval
     4. Store original text for later retrieval
     """
-    # (documents is a module-level list — .extend() mutates it in place, no `global` needed)
-
     if not chunks:
         return
+
+    np = _get_np()
+    faiss = _get_faiss()
+    model = _get_model()
+    index = _get_index()
 
     # Encode text chunks into dense vectors
     embeddings = model.encode(chunks, convert_to_numpy=True)
@@ -64,8 +111,13 @@ def semantic_search(query: str, top_k: int = 3) -> list[str]:
     
     Returns a list of the top-k most relevant text chunks.
     """
+    index = _get_index()
     if index.ntotal == 0:
         return []
+
+    np = _get_np()
+    faiss = _get_faiss()
+    model = _get_model()
 
     # Embed the query
     query_embedding = model.encode([query], convert_to_numpy=True)
@@ -89,8 +141,13 @@ def semantic_search_with_scores(query: str, top_k: int = 3) -> list[dict]:
     Returns list of dicts with 'text' and 'score' keys.
     Used to show users WHERE the AI's answer came from.
     """
+    index = _get_index()
     if index.ntotal == 0:
         return []
+
+    np = _get_np()
+    faiss = _get_faiss()
+    model = _get_model()
 
     query_embedding = model.encode([query], convert_to_numpy=True)
     faiss.normalize_L2(query_embedding)
@@ -110,6 +167,7 @@ def semantic_search_with_scores(query: str, top_k: int = 3) -> list[dict]:
 
 def get_index_stats() -> dict:
     """Return stats about the current vector store state."""
+    index = _get_index()
     return {
         "total_documents": len(documents),
         "index_size": index.ntotal,
