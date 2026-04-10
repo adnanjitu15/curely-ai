@@ -61,6 +61,17 @@ EMERGENCY_KEYWORDS = [
 GREETING_KEYWORDS = ["salam", "assalamualaikum", "hello", "hi", "hey", "good morning", "good evening", "assalamu", "salam", "hi curely"]
 EMPATHY_KEYWORDS = ["sick", "pain", "hurt", "unwell", "ill", "not feeling well", "fever", "cough"]
 
+# Creator / identity questions — handled locally to avoid LLM safety filter crashes
+CREATOR_KEYWORDS = [
+    "who created you", "who made you", "who built you", "who developed you",
+    "who is your creator", "who is your maker", "who is your developer",
+    "who designed you", "who programmed you", "who coded you",
+    "who are you", "what are you", "tell me about yourself",
+    "who owns you", "who is behind you", "who is your owner",
+    "your creator", "your developer", "your maker",
+    "who invented you", "who founded you",
+]
+
 MEDICAL_KEYWORDS = [
     "health", "medical", "medicine", "doctor", "hospital",
     "treatment", "diagnosis", "symptom",
@@ -83,8 +94,27 @@ def is_greeting(message: str) -> bool:
 def needs_empathy(message: str) -> bool:
     return any(word in message for word in EMPATHY_KEYWORDS)
 
+def is_creator_question(message: str) -> bool:
+    return any(phrase in message for phrase in CREATOR_KEYWORDS)
+
 def generate_chat_reply(message: str, provider: str = "gemini") -> str:
     msg = message.lower()
+
+    # 0. Handle creator/identity questions LOCALLY (Gemini's safety filter blocks these)
+    if is_creator_question(msg):
+        return (
+            "Great question! 😊 I was created by **Adnan** — a passionate AI Engineer from Bangladesh 🇧🇩. "
+            "He built me from scratch using a **RAG (Retrieval-Augmented Generation)** architecture with:\n\n"
+            "- 🐍 **Python & FastAPI** for the backend\n"
+            "- 🔍 **FAISS** (Facebook AI Similarity Search) for semantic vector search\n"
+            "- 🤖 **Google Gemini 2.5 Flash** as my primary AI brain\n"
+            "- 🧠 **OpenAI GPT-4o** as my backup brain\n"
+            "- ⚛️ **Next.js** for the frontend\n"
+            "- 🗄️ **SQLAlchemy + SQLite** for chat history\n\n"
+            "I'm designed to help you understand your medical reports and answer health-related questions "
+            "with real source attribution. Pretty cool, right? ✨\n\n"
+            "Check out the project on [GitHub](https://github.com/adnanjitu15/curely-ai)! 🚀"
+        )
 
     # 1. Check for real Gemini integration first
     api_key = os.getenv("GEMINI_API_KEY")
@@ -214,6 +244,24 @@ def generate_chat_reply(message: str, provider: str = "gemini") -> str:
 
 def generate_chat_reply_with_context(message: str, context: str, provider: str = "gemini") -> str:
     """Generate a reply using specific document context via RAG."""
+    msg = message.lower()
+    
+    # 0. Handle creator/identity questions LOCALLY (Gemini's safety filter blocks these)
+    if is_creator_question(msg):
+        return (
+            "Great question! 😊 I was created by **Adnan** — a passionate AI Engineer from Bangladesh 🇧🇩. "
+            "He built me from scratch using a **RAG (Retrieval-Augmented Generation)** architecture with:\n\n"
+            "- 🐍 **Python & FastAPI** for the backend\n"
+            "- 🔍 **FAISS** (Facebook AI Similarity Search) for semantic vector search\n"
+            "- 🤖 **Google Gemini 2.5 Flash** as my primary AI brain\n"
+            "- 🧠 **OpenAI GPT-4o** as my backup brain\n"
+            "- ⚛️ **Next.js** for the frontend\n"
+            "- 🗄️ **SQLAlchemy + SQLite** for chat history\n\n"
+            "I'm designed to help you understand your medical reports and answer health-related questions "
+            "with real source attribution. Pretty cool, right? ✨\n\n"
+            "Check out the project on [GitHub](https://github.com/adnanjitu15/curely-ai)! 🚀"
+        )
+
     api_key = os.getenv("GEMINI_API_KEY")
     if api_key:
         try:
