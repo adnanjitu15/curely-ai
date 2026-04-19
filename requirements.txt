@@ -18,8 +18,8 @@ google-genai
 openai
 
 # --- Vector Search & Embeddings ---
-faiss-cpu
-sentence-transformers
+# Using Google Gemini embedding API + pure-Python cosine similarity
+# (removed faiss-cpu & sentence-transformers to stay under Render 512MB limit)
 
 # --- Document Processing ---
 pdf2image
