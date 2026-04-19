@@ -111,6 +111,10 @@ def semantic_search(query: str, top_k: int = 3) -> list[str]:
     
     Returns a list of the top-k most relevant text chunks.
     """
+    # Skip loading heavy ML libs if there's nothing to search
+    if not documents:
+        return []
+
     index = _get_index()
     if index.ntotal == 0:
         return []
@@ -141,6 +145,10 @@ def semantic_search_with_scores(query: str, top_k: int = 3) -> list[dict]:
     Returns list of dicts with 'text' and 'score' keys.
     Used to show users WHERE the AI's answer came from.
     """
+    # Skip loading heavy ML libs if there's nothing to search
+    if not documents:
+        return []
+
     index = _get_index()
     if index.ntotal == 0:
         return []
