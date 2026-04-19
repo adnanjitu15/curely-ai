@@ -144,16 +144,16 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
     4. Return reply + source attribution (which chunks informed the answer)
     5. If session_id provided → persist both user message and AI reply to the database
     """
-    # 1️⃣ Semantic search over FAISS index (returns chunks with relevance scores)
+    # 1️⃣ Semantic search over vector store (returns chunks with relevance scores)
     search_results = semantic_search_with_scores(request.message, top_k=3)
     
-    # Filter to only chunks with meaningful relevance (score > 0.15)
-    # OR if the user explicitly mentions the report, pass the top chunks anyway 
-    # so the LLM knows the document was uploaded.
-    keywords = ["report", "upload", "image", "document", "file", "pic", "test", "result", "give", "get"]
-    has_keyword = any(w in request.message.lower() for w in keywords)
-    
-    relevant_results = [r for r in search_results if r["score"] > 0.15 or has_keyword]
+    # If documents were uploaded, ALWAYS pass context to the LLM
+    # (even if the user's message is vague like "what should I do?")
+    # This ensures the AI always analyzes uploaded documents.
+    if search_results:
+        relevant_results = search_results  # Use ALL results — the LLM is smart enough to decide relevance
+    else:
+        relevant_results = []
     
     # Build source attribution
     sources = [
