@@ -309,7 +309,23 @@ def generate_chat_reply_with_context(message: str, context: str, provider: str =
             )
             return response.text
         except Exception as e:
-            print(f"[CRITICAL] Gemini API Error with context: {e}")
+            print(f"[WARNING] Gemini API Error with context: {e}")
+            # AUTO-FALLBACK: Try GPT-4o when Gemini fails
+            openai_api_key = os.getenv("OPENAI_API_KEY")
+            if openai_api_key:
+                try:
+                    print("[FALLBACK] Trying GPT-4o as backup...")
+                    openai_client = openai.OpenAI(api_key=openai_api_key)
+                    response = openai_client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": f"[Document Context]: {context}\n\nUser query: {message}"}
+                        ]
+                    )
+                    return response.choices[0].message.content
+                except Exception as fallback_e:
+                    print(f"[CRITICAL] GPT-4o fallback also failed: {fallback_e}")
             return f"I'm having a temporary issue analyzing your document. Please try again in a moment! 🔄 (Error: {type(e).__name__})"
             
     # Fallback to standard chat if API fails or no key
