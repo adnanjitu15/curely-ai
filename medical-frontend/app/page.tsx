@@ -357,11 +357,41 @@ export default function Home() {
     setTimeout(() => {
       setShowRefresh(true);
 
-      // 3. Show loader for 6 seconds, then switch to full Chat Window
-      setTimeout(() => {
+      // 3. Ping the backend health endpoint to ensure it's awake (Render free-tier sleep fix)
+      const wakeUpBackend = async () => {
+        const startTime = Date.now();
+        const minimumLoaderTime = 2500; // Show loader for at least 2.5 seconds so it looks cool
+        
+        while (true) {
+          try {
+            const res = await fetch(`${API_BASE_URL}/health`, { 
+              method: 'GET',
+              // Add a cache breaker so the browser doesn't give us a false positive
+              headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } 
+            });
+            
+            if (res.ok) {
+              // Server is awake! Check if we need to wait a little longer for the cool CSS animation
+              const elapsed = Date.now() - startTime;
+              if (elapsed < minimumLoaderTime) {
+                await new Promise(resolve => setTimeout(resolve, minimumLoaderTime - elapsed));
+              }
+              break; // Exit the loop
+            }
+          } catch (error) {
+            console.log("Server is waking up...");
+          }
+          // Wait 2 seconds before checking again
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+        // Remove loader, show chat
         setShowRefresh(false);
         setShowChatWindow(true);
-      }, 6000); // 6 seconds wait time for loader
+      };
+
+      wakeUpBackend();
+
     }, 7000); // 7 seconds wait time for button animation
   };
 
