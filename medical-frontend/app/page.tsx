@@ -73,6 +73,12 @@ export default function Home() {
   const [showRefresh, setShowRefresh] = useState(false);
   const [showChatWindow, setShowChatWindow] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isPageBooting, setIsPageBooting] = useState(true);
+
+  useEffect(() => {
+    // Imitate a heavy initial client load for 6 seconds
+    setTimeout(() => setIsPageBooting(false), 6000);
+  }, []);
 
   // Input Box States
   const [isChatMode, setIsChatMode] = useState(false);
@@ -360,7 +366,7 @@ export default function Home() {
       // 3. Ping the backend health endpoint to ensure it's awake (Render free-tier sleep fix)
       const wakeUpBackend = async () => {
         const startTime = Date.now();
-        const minimumLoaderTime = 2500; // Show loader for at least 2.5 seconds so it looks cool
+        const minimumLoaderTime = 3500; // Show loader for at least 3.5 seconds so it looks cool
         
         while (true) {
           try {
@@ -713,13 +719,14 @@ export default function Home() {
 
       {/* --- REFRESH LOADING WINDOW (THE ORIGINAL GOATED BELL LOADER) --- */}
       <AnimatePresence>
-        {showRefresh && (
+        {(isPageBooting || showRefresh) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
             className="preloader" 
+            style={{ zIndex: 99999 }}
           >
             <div className="preloader-body">
               <div className="cssload-bell">
